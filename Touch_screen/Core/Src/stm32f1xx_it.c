@@ -47,7 +47,7 @@
 
 /* Private function prototypes -----------------------------------------------*/
 /* USER CODE BEGIN PFP */
-
+void HAL_UART_IDLE_HANDLER(UART_HandleTypeDef *huart);
 /* USER CODE END PFP */
 
 /* Private user code ---------------------------------------------------------*/
@@ -218,7 +218,7 @@ void DMA1_Channel6_IRQHandler(void)
 void USART2_IRQHandler(void)
 {
   /* USER CODE BEGIN USART2_IRQn 0 */
-
+HAL_UART_IDLE_HANDLER(&huart2);
   /* USER CODE END USART2_IRQn 0 */
   HAL_UART_IRQHandler(&huart2);
   /* USER CODE BEGIN USART2_IRQn 1 */
@@ -227,6 +227,24 @@ void USART2_IRQHandler(void)
 }
 
 /* USER CODE BEGIN 1 */
-
+void HAL_UART_IDLE_HANDLER(UART_HandleTypeDef *huart)
+{
+   uint32_t isrflags   =  READ_REG(huart->Instance->SR); 
+   if((USART_SR_IDLE & isrflags) != RESET)
+   {
+       __HAL_UART_CLEAR_IDLEFLAG(huart);
+	   HAL_UART_DMAStop(huart);
+      /* Disable the UART Data Register not empty Interrupt */
+      __HAL_UART_DISABLE_IT(huart, UART_IT_RXNE);
+      /* Disable the UART Parity Error Interrupt */
+      __HAL_UART_DISABLE_IT(huart, UART_IT_PE);
+      /* Disable the UART Error Interrupt: (Frame error, noise error, overrun error) */
+      __HAL_UART_DISABLE_IT(huart, UART_IT_ERR);
+      /* Rx process is completed, restore huart->RxState to Ready */
+	   huart->RxState = HAL_UART_STATE_READY;
+ 
+      HAL_UART_RxCpltCallback(huart); 
+   }
+}
 /* USER CODE END 1 */
 /************************ (C) COPYRIGHT STMicroelectronics *****END OF FILE****/

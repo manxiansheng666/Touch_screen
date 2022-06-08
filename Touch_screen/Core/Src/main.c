@@ -90,7 +90,7 @@ int main(void)
   MX_DMA_Init();
   MX_USART2_UART_Init();
   /* USER CODE BEGIN 2 */
-
+HAL_UART_Receive_DMA(&huart2,rx_buffer,BUFFER_SIZE);
   /* USER CODE END 2 */
 
   /* Infinite loop */
@@ -143,7 +143,16 @@ void SystemClock_Config(void)
 }
 
 /* USER CODE BEGIN 4 */
-
+void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart)
+{
+	if(huart2.Instance == USART2)
+	{
+	    rx_cpt_nums = BUFFER_SIZE - hdma_usart2_rx.Instance->CNDTR;
+//		HAL_UART_Transmit_DMA(&huart1,rx_buffer,rx_cpt_nums);
+		
+		HAL_UART_Receive_DMA(&huart2,rx_buffer,BUFFER_SIZE);
+	}
+}
 /* USER CODE END 4 */
 
 /**

@@ -33,7 +33,11 @@
 extern UART_HandleTypeDef huart2;
 
 /* USER CODE BEGIN Private defines */
-
+#define BUFFER_SIZE 20
+	 
+extern uint8_t rx_buffer[BUFFER_SIZE];
+extern uint16_t rx_cpt_nums;
+extern DMA_HandleTypeDef hdma_usart2_rx;
 /* USER CODE END Private defines */
 
 void MX_USART2_UART_Init(void);
