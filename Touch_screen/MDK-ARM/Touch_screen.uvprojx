@@ -365,7 +365,7 @@
               <MiscControls></MiscControls>
               <Define>USE_HAL_DRIVER,STM32F103xE</Define>
               <Undefine></Undefine>
-              <IncludePath>../Core/Inc; ../Drivers/STM32F1xx_HAL_Driver/Inc; ../Drivers/STM32F1xx_HAL_Driver/Inc/Legacy; ../Drivers/CMSIS/Device/ST/STM32F1xx/Include; ../Drivers/CMSIS/Include</IncludePath>
+              <IncludePath>../Core/Inc;../Drivers/STM32F1xx_HAL_Driver/Inc;../Drivers/STM32F1xx_HAL_Driver/Inc/Legacy;../Drivers/CMSIS/Device/ST/STM32F1xx/Include;../Drivers/CMSIS/Include;..\USER</IncludePath>
             </VariousControls>
           </Cads>
           <Aads>
@@ -412,6 +412,36 @@
               <FileName>startup_stm32f103xe.s</FileName>
               <FileType>2</FileType>
               <FilePath>startup_stm32f103xe.s</FilePath>
+            </File>
+          </Files>
+        </Group>
+        <Group>
+          <GroupName>USER</GroupName>
+          <Files>
+            <File>
+              <FileName>mbcommon.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\USER\mbcommon.c</FilePath>
+            </File>
+            <File>
+              <FileName>mbpdu.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\USER\mbpdu.c</FilePath>
+            </File>
+            <File>
+              <FileName>mbrtu.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\USER\mbrtu.c</FilePath>
+            </File>
+            <File>
+              <FileName>mbrtumaster.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\USER\mbrtumaster.c</FilePath>
+            </File>
+            <File>
+              <FileName>mbrtuslave.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\USER\mbrtuslave.c</FilePath>
             </File>
           </Files>
         </Group>
