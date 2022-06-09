@@ -25,7 +25,9 @@
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
-
+#include "mbrtuslave.h"
+#include "bsp.h"
+#include "MultiTimer.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -39,19 +41,25 @@
 
 /* Private macro -------------------------------------------------------------*/
 /* USER CODE BEGIN PM */
-
+#define MCUDRECEIVELENGTH 256
 /* USER CODE END PM */
 
 /* Private variables ---------------------------------------------------------*/
 
 /* USER CODE BEGIN PV */
 
+volatile bool IN[8];
+volatile bool OUT[3];
+bool pre_out0;
+uint64_t time = 0;
+MultiTimer timer1;//led状态指示灯
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
 void SystemClock_Config(void);
 /* USER CODE BEGIN PFP */
-
+uint64_t PlatformTicksGetFunc(void);
+void Timer1Callback(MultiTimer* timer, void *userData);
 /* USER CODE END PFP */
 
 /* Private user code ---------------------------------------------------------*/
@@ -91,12 +99,34 @@ int main(void)
   MX_USART2_UART_Init();
   /* USER CODE BEGIN 2 */
 HAL_UART_Receive_DMA(&huart2,rx_buffer,BUFFER_SIZE);
+MultiTimerInstall(PlatformTicksGetFunc);
   /* USER CODE END 2 */
 
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
   while (1)
   {
+	  if(OUT[0] == true)//手动
+	  {
+		if(pre_out0 == false)
+			MultiTimerStop(&timer1);
+		  
+		HAL_GPIO_WritePin(led1_GPIO_Port,led1_Pin,(GPIO_PinState)OUT[1]);
+		HAL_GPIO_WritePin(led2_GPIO_Port,led2_Pin,(GPIO_PinState)OUT[2]);
+	  }
+	  else if(OUT[0] == false)	//自动
+	  {
+		if(pre_out0 == true)
+		{
+			HAL_GPIO_WritePin(led1_GPIO_Port,led1_Pin,GPIO_PIN_RESET);
+			HAL_GPIO_WritePin(led2_GPIO_Port,led2_Pin,GPIO_PIN_SET);
+			MultiTimerStart(&timer1, 300, Timer1Callback, NULL);
+		}
+	  }
+	  pre_out0 = OUT[0];
+	  IN[0] = HAL_GPIO_ReadPin(key0_GPIO_Port,key0_Pin);
+	  IN[1] = HAL_GPIO_ReadPin(key1_GPIO_Port,key1_Pin);
+	  MultiTimerYield();
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */
@@ -145,13 +175,52 @@ void SystemClock_Config(void)
 /* USER CODE BEGIN 4 */
 void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart)
 {
+	uint16_t respondLength = 0;
+	uint8_t respondBytes[MCUDRECEIVELENGTH];
 	if(huart2.Instance == USART2)
 	{
 	    rx_cpt_nums = BUFFER_SIZE - hdma_usart2_rx.Instance->CNDTR;
-//		HAL_UART_Transmit_DMA(&huart1,rx_buffer,rx_cpt_nums);
-		
+		respondLength = ParsingMasterAccessCommand(rx_buffer,respondBytes,rx_cpt_nums,1);
+		if(respondLength != 65535)
+        {
+//			uart2_send_by485("hello",5);
+            uart2_send_by485(respondBytes,respondLength);
+		}
 		HAL_UART_Receive_DMA(&huart2,rx_buffer,BUFFER_SIZE);
 	}
+}
+
+void GetInputStatus(uint16_t startAddress,uint16_t quantity,bool *statusValue)
+{
+	for(int i = 0;i < quantity;i++)
+	{
+		statusValue[i] = IN[i + startAddress];
+	}
+}
+
+void GetCoilStatus(uint16_t startAddress,uint16_t quantity,bool *statusList)
+{
+	for(int i = 0;i < quantity;i++)
+	{
+		statusList[i] = OUT[i + startAddress];
+	}
+}
+
+void SetSingleCoil(uint16_t coilAddress,bool coilValue)
+{
+	OUT[coilAddress] = coilValue;
+}
+
+uint64_t PlatformTicksGetFunc(void)
+{
+    return time;
+}
+
+void Timer1Callback(MultiTimer* timer, void *userData)
+{
+    HAL_GPIO_TogglePin(led1_GPIO_Port,led1_Pin);
+	HAL_GPIO_TogglePin(led2_GPIO_Port,led2_Pin);
+    MultiTimerStart(timer, 300, Timer1Callback, userData);
 }
 /* USER CODE END 4 */
 
