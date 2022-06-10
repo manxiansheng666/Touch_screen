@@ -19,6 +19,7 @@
 /* USER CODE END Header */
 /* Includes ------------------------------------------------------------------*/
 #include "main.h"
+#include "adc.h"
 #include "dma.h"
 #include "usart.h"
 #include "gpio.h"
@@ -28,6 +29,7 @@
 #include "mbrtuslave.h"
 #include "bsp.h"
 #include "MultiTimer.h"
+#include "stdio.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -53,6 +55,7 @@ volatile bool OUT[3];
 bool pre_out0;
 uint64_t time = 0;
 MultiTimer timer1;//led状态指示灯
+volatile float temper;
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -97,6 +100,7 @@ int main(void)
   MX_GPIO_Init();
   MX_DMA_Init();
   MX_USART2_UART_Init();
+  MX_ADC1_Init();
   /* USER CODE BEGIN 2 */
 HAL_UART_Receive_DMA(&huart2,rx_buffer,BUFFER_SIZE);
 MultiTimerInstall(PlatformTicksGetFunc);
@@ -126,6 +130,17 @@ MultiTimerInstall(PlatformTicksGetFunc);
 	  pre_out0 = OUT[0];
 	  IN[0] = HAL_GPIO_ReadPin(key0_GPIO_Port,key0_Pin);
 	  IN[1] = HAL_GPIO_ReadPin(key1_GPIO_Port,key1_Pin);
+	  
+	  //获取温度
+	  HAL_ADC_Start(&hadc1);	
+	  HAL_ADC_PollForConversion(&hadc1,10);
+	  uint16_t AD_Value = HAL_ADC_GetValue(&hadc1);
+	  float Vol_Value = AD_Value*(3.3/4096);
+	  temper = (1.43 - Vol_Value)/0.0043 + 25;
+	  
+//	  char buf[10] = {0};	//打印输出测试
+//	  snprintf(buf,10,"%.2f ",temper);
+//	  uart2_send_by485(buf,strlen(buf));
 	  MultiTimerYield();
     /* USER CODE END WHILE */
 
@@ -142,6 +157,7 @@ void SystemClock_Config(void)
 {
   RCC_OscInitTypeDef RCC_OscInitStruct = {0};
   RCC_ClkInitTypeDef RCC_ClkInitStruct = {0};
+  RCC_PeriphCLKInitTypeDef PeriphClkInit = {0};
 
   /** Initializes the RCC Oscillators according to the specified parameters
   * in the RCC_OscInitTypeDef structure.
@@ -167,6 +183,12 @@ void SystemClock_Config(void)
   RCC_ClkInitStruct.APB2CLKDivider = RCC_HCLK_DIV1;
 
   if (HAL_RCC_ClockConfig(&RCC_ClkInitStruct, FLASH_LATENCY_2) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  PeriphClkInit.PeriphClockSelection = RCC_PERIPHCLK_ADC;
+  PeriphClkInit.AdcClockSelection = RCC_ADCPCLK2_DIV6;
+  if (HAL_RCCEx_PeriphCLKConfig(&PeriphClkInit) != HAL_OK)
   {
     Error_Handler();
   }
@@ -214,6 +236,16 @@ void SetSingleCoil(uint16_t coilAddress,bool coilValue)
 uint64_t PlatformTicksGetFunc(void)
 {
     return time;
+}
+
+void GetInputRegister(uint16_t startAddress,uint16_t quantity,uint16_t *registerValue)
+{
+	transfer_4bytes((uint32_t*)&temper);
+	uint16_t* buf = (uint16_t*)&temper;
+	for(int i = 0;i < quantity;i++)
+	{
+		registerValue[i] = buf[startAddress + i];
+	}
 }
 
 void Timer1Callback(MultiTimer* timer, void *userData)
