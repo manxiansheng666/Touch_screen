@@ -51,7 +51,13 @@
 /* USER CODE BEGIN PV */
 uint64_t time = 0;
 MultiTimer timer1;
+extern uint8_t rx_byte;
 volatile float temper;
+
+extern uint16_t OUTREG[20];    
+extern uint16_t INREG[20];		
+extern uint8_t OUTPUT[40];    
+extern uint8_t INPUT[40];    
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -98,17 +104,45 @@ int main(void)
   MX_ADC1_Init();
   /* USER CODE BEGIN 2 */
 MultiTimerInstall(PlatformTicksGetFunc);
-MultiTimerStart(&timer1, 500, Timer1Callback, NULL);
+HAL_UART_Receive_IT(&huart2,&rx_byte,1);
   /* USER CODE END 2 */
 
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
   while (1)
   {
+	  uint8_t buf[64];
+	  uint8_t len;
+	  RS485_Receive_Data(buf,&len);
+	  if(len > 0)					//判断是否接收到数据
+	  {
+		modbus_process(buf,len,0x01);	//将接收的数据进行处理，第三个参数为本站地址。
+	  }
 	  
-//	  temper = get_temper();
+	  //发现上位机下发数据，启动定时器，并清除对应输出寄存器
+	  if(OUTREG[0] != 0)
+	  {
+		uint32_t led_time = OUTREG[0];
+		OUTREG[0] = 0;
+		HAL_GPIO_WritePin(led1_GPIO_Port,led1_Pin,GPIO_PIN_RESET);
+		MultiTimerStart(&timer1, led_time, Timer1Callback, NULL);
+	  }
 	  
-	  MultiTimerYield();
+	  //更新温度对应的输入寄存器，占两个寄存器位置
+	  temper = get_temper();
+	  INREG[0] = *((uint16_t*)&temper + 1);
+	  INREG[1] = *(uint16_t*)&temper;
+	  
+	  //更新线圈
+	  HAL_GPIO_WritePin(led2_GPIO_Port,led2_Pin,(GPIO_PinState)(OUTPUT[0] & 0x01));
+	  
+	  
+	  //更新状态灯对应的输入开关bit位
+	  INPUT[0] &= ~(0x03);	//清除bit0、bit1的数据
+	  INPUT[0] |= HAL_GPIO_ReadPin(key0_GPIO_Port,key0_Pin);
+	  INPUT[0] |= HAL_GPIO_ReadPin(key1_GPIO_Port,key1_Pin) << 1;
+	  
+	  MultiTimerYield();//软件定时器
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */
@@ -162,6 +196,7 @@ void SystemClock_Config(void)
 }
 
 /* USER CODE BEGIN 4 */
+
 uint64_t PlatformTicksGetFunc(void)
 {
     return time;
@@ -169,7 +204,7 @@ uint64_t PlatformTicksGetFunc(void)
 
 void Timer1Callback(MultiTimer* timer, void *userData)
 {
-    MultiTimerStart(timer, 500, Timer1Callback, userData);
+    HAL_GPIO_WritePin(led1_GPIO_Port,led1_Pin,GPIO_PIN_SET);
 }
 
 /* USER CODE END 4 */
